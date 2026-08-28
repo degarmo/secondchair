@@ -16,6 +16,8 @@ Three rules hold this together.
 import json
 import logging
 import re
+import time
+from typing import NamedTuple
 
 import anthropic
 from django.apps import apps
@@ -204,9 +206,24 @@ def get_model_id():
     return model
 
 
+class ModelCall(NamedTuple):
+    """One API round trip, with what it cost.
+
+    Usage and latency are carried out of the call rather than logged and
+    discarded, because the cost of a full intake is a number worth knowing
+    before running one.
+    """
+
+    text: str
+    input_tokens: int
+    output_tokens: int
+    duration_s: float
+
+
 def call_model(question, answer):
-    """One API call. Returns the raw response text."""
+    """One API call. Returns a :class:`ModelCall`."""
     client = get_client()
+    started = time.monotonic()
     response = client.messages.create(
         model=get_model_id(),
         max_tokens=MAX_TOKENS,
@@ -218,10 +235,24 @@ def call_model(question, answer):
             }
         ],
     )
+    duration = time.monotonic() - started
+
     if response.stop_reason == "refusal":
         raise ExtractionError("The model declined to process this answer.")
-    return "".join(
-        block.text for block in response.content if block.type == "text"
+
+    logger.info(
+        "Model call: %s in / %s out tokens in %.2fs",
+        response.usage.input_tokens,
+        response.usage.output_tokens,
+        duration,
+    )
+    return ModelCall(
+        text="".join(
+            block.text for block in response.content if block.type == "text"
+        ),
+        input_tokens=response.usage.input_tokens,
+        output_tokens=response.usage.output_tokens,
+        duration_s=duration,
     )
 
 
@@ -385,8 +416,8 @@ def extract_from_turn(turn):
             f"Turn {turn.pk} has no answer to extract from."
         )
 
-    raw = call_model(turn.question_text, turn.answer_text)
-    return build_extractions(turn, raw)
+    call = call_model(turn.question_text, turn.answer_text)
+    return build_extractions(turn, call.text)
 
 
 # --------------------------------------------------------------------------
@@ -449,14 +480,13 @@ def promote_extraction(extraction):
 
 
 def reject_extraction(extraction, reason=""):
-    """Mark an extraction rejected. Never creates anything.
-
-    ``reason`` is logged rather than stored -- there is no field for it on
-    ``Extraction``.
-    """
+    """Mark an extraction rejected. Never creates anything."""
     extraction.status = ExtractionStatus.REJECTED
     extraction.reviewed_at = timezone.now()
-    extraction.save(update_fields=["status", "reviewed_at"])
+    extraction.rejection_reason = reason
+    extraction.save(
+        update_fields=["status", "reviewed_at", "rejection_reason"]
+    )
     logger.info(
         "Rejected extraction %s (%s)%s",
         extraction.pk,

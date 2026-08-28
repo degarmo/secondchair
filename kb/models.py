@@ -402,6 +402,11 @@ class Extraction(models.Model):
         default=ExtractionStatus.PENDING,
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(
+        blank=True,
+        help_text="Why a reviewer turned this down. Kept so a recurring "
+        "extraction fault is visible as a pattern rather than lost.",
+    )
     created_object_id = models.IntegerField(
         null=True, blank=True, help_text="Set when approved and promoted."
     )

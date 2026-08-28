@@ -131,12 +131,12 @@ class ExtractionAdmin(admin.ModelAdmin):
 
     list_display = (
         "target_model", "confidence", "status", "payload_preview",
-        "quote_preview", "turn", "created_object_id",
+        "quote_preview", "rejection_reason", "turn", "created_object_id",
     )
     list_display_links = ("target_model",)
     list_editable = ("status",)
     list_filter = ("status", "target_model")
-    search_fields = ("payload", "supporting_quote")
+    search_fields = ("payload", "supporting_quote", "rejection_reason")
     list_select_related = ("turn",)
     readonly_fields = ("created_object_id", "reviewed_at")
     actions = ("approve_and_promote", "reject_selected")
