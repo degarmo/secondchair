@@ -58,6 +58,16 @@ class ConstraintKind(models.TextChoices):
     DEALBREAKER = "dealbreaker", "Dealbreaker"
 
 
+class QuestionCategory(models.TextChoices):
+    OPENER = "opener", "Opener"
+    ROLE = "role", "Role"
+    PROJECT = "project", "Project"
+    STORY = "story", "Story"
+    SKILL = "skill", "Skill"
+    CONSTRAINT = "constraint", "Constraint"
+    CLOSER = "closer", "Closer"
+
+
 class ExtractionStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     APPROVED = "approved", "Approved"
@@ -90,6 +100,46 @@ class Source(models.Model):
 
     def __str__(self):
         return self.label
+
+
+class Question(models.Model):
+    """One question in the intake bank.
+
+    Carries no source: a question is not a claim about the candidate. The
+    wording here is the current wording -- ``IntakeTurn.question_text``
+    keeps the wording as actually asked at the time.
+    """
+
+    key = models.SlugField(
+        unique=True, help_text="Stable identifier, referenced by code and seeds."
+    )
+    text = models.TextField(help_text="The question as asked.")
+    category = models.CharField(
+        max_length=20, choices=QuestionCategory.choices
+    )
+    target_model = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        choices=ExtractionTarget.choices,
+        help_text="Which knowledge model this question primarily feeds. "
+        "Null for openers and closers.",
+    )
+    priority = models.IntegerField(help_text="Lower sorts first.")
+    active = models.BooleanField(default=True)
+    question_set_version = models.CharField(max_length=50)
+
+    class Meta:
+        ordering = ["priority"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["key", "question_set_version"],
+                name="unique_question_key_per_version",
+            )
+        ]
+
+    def __str__(self):
+        return self.key
 
 
 class KnowledgeItem(models.Model):
@@ -132,7 +182,16 @@ class IntakeTurn(models.Model):
     session = models.ForeignKey(
         IntakeSession, on_delete=models.CASCADE, related_name="turns"
     )
-    question_text = models.TextField()
+    question = models.ForeignKey(
+        Question,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="turns",
+    )
+    question_text = models.TextField(
+        help_text="Denormalised snapshot of the wording as asked at the time."
+    )
     answer_text = models.TextField(null=True, blank=True)
     asked_at = models.DateTimeField(auto_now_add=True)
     answered_at = models.DateTimeField(null=True, blank=True)

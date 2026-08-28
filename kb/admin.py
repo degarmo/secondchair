@@ -7,6 +7,7 @@ from .models import (
     IntakeSession,
     IntakeTurn,
     Project,
+    Question,
     Role,
     Skill,
     Source,
@@ -22,6 +23,19 @@ class SourceAdmin(admin.ModelAdmin):
     date_hierarchy = "captured_on"
 
 
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    list_display = (
+        "priority", "key", "category", "target_model", "active",
+        "question_set_version",
+    )
+    list_display_links = ("key",)
+    list_editable = ("active",)
+    list_filter = ("question_set_version", "category", "active", "target_model")
+    search_fields = ("key", "text")
+    ordering = ("question_set_version", "priority")
+
+
 @admin.register(IntakeSession)
 class IntakeSessionAdmin(admin.ModelAdmin):
     list_display = ("id", "question_set_version", "started_at", "completed_at")
@@ -31,10 +45,12 @@ class IntakeSessionAdmin(admin.ModelAdmin):
 
 @admin.register(IntakeTurn)
 class IntakeTurnAdmin(admin.ModelAdmin):
-    list_display = ("id", "session", "question_text", "answered_at", "source")
-    list_filter = ("session", "answered_at")
-    search_fields = ("question_text", "answer_text")
-    list_select_related = ("session", "source")
+    list_display = (
+        "id", "session", "question", "question_text", "answered_at", "source",
+    )
+    list_filter = ("session", "answered_at", "question__category")
+    search_fields = ("question_text", "answer_text", "question__key")
+    list_select_related = ("session", "question", "source")
 
 
 @admin.register(Role)
