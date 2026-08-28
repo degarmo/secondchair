@@ -6,6 +6,7 @@ from django.utils.html import format_html
 from .services.extraction import promote_extraction, reject_extraction
 
 from .models import (
+    ExtractionStatus,
     Constraint,
     Extraction,
     Gap,
@@ -179,10 +180,18 @@ class ExtractionAdmin(admin.ModelAdmin):
         # partial success reported as one vague warning is how bad records
         # get through.
         for extraction, errors in failures:
+            # Report the row's real status: a validation failure leaves it
+            # pending and retryable, but an already-reviewed row was never
+            # pending to begin with.
+            state = (
+                "left pending"
+                if extraction.status == ExtractionStatus.PENDING
+                else f"status unchanged ({extraction.status})"
+            )
             self.message_user(
                 request,
                 f"Extraction {extraction.pk} ({extraction.target_model}) "
-                f"not promoted, left pending: {'; '.join(errors)}",
+                f"not promoted, {state}: {'; '.join(errors)}",
                 messages.ERROR,
             )
 
