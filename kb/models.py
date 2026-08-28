@@ -265,7 +265,9 @@ class Project(KnowledgeItem):
     name = models.CharField(max_length=200)
     description = models.TextField()
     stack = ArrayField(
-        models.CharField(max_length=100), help_text="Technologies used."
+        models.CharField(max_length=100),
+        blank=True,
+        help_text="Technologies used. Empty when the source named none.",
     )
     outcome = models.TextField(
         blank=True, help_text="What it produced or changed."
@@ -296,7 +298,9 @@ class Story(KnowledgeItem):
     result = models.TextField()
     themes = ArrayField(
         models.CharField(max_length=50),
-        help_text="e.g. conflict, failure, leadership, ambiguity, scale.",
+        blank=True,
+        help_text="e.g. conflict, failure, leadership, ambiguity, scale. "
+        "Empty when the source suggested none.",
     )
     # A story may attach to a role, a project, both, or neither.
     role = models.ForeignKey(
@@ -331,7 +335,14 @@ class Skill(KnowledgeItem):
     last_used = models.DateField(
         null=True, blank=True, help_text="Null means currently in use."
     )
-    depth = models.CharField(max_length=20, choices=SkillDepth.choices)
+    depth = models.CharField(
+        max_length=20,
+        choices=SkillDepth.choices,
+        null=True,
+        blank=True,
+        help_text="Null means the source never stated it. Nullable on "
+        "purpose: a required enum would force a guess.",
+    )
 
     def __str__(self):
         return self.name

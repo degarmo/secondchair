@@ -135,8 +135,11 @@ response must be a single JSON array.
 Each element is an object with exactly these keys:
   - "target_model": one of {targets}
   - "payload": an object mapping field names above to values. Use only \
-field names listed for that model. Omit any field the answer does not \
-support -- an absent field is always better than a guessed one.
+field names listed for that model. Every field marked [optional] may be \
+left out entirely, and leaving one out is always better than guessing at \
+it -- omission is how you say "the answer did not state this". Include \
+every field marked [required]; if the answer does not support a required \
+field, do not propose that record at all.
   - "confidence": a number from 0.0 to 1.0, how certain you are that the \
 answer supports this record as written.
   - "supporting_quote": the span of the answer that justifies this record, \
