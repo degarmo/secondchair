@@ -111,7 +111,8 @@ class Question(models.Model):
     """
 
     key = models.SlugField(
-        unique=True, help_text="Stable identifier, referenced by code and seeds."
+        help_text="Stable identifier, referenced by code and seeds. Unique "
+        "within a question set, so a later set can reuse it."
     )
     text = models.TextField(help_text="The question as asked.")
     category = models.CharField(
@@ -202,6 +203,17 @@ class IntakeTurn(models.Model):
         on_delete=models.SET_NULL,
         related_name="intake_turn",
     )
+
+    class Meta:
+        constraints = [
+            # Postgres treats NULLs as distinct, so this pins one turn per
+            # question while still allowing any number of follow-up turns
+            # that reference no question.
+            models.UniqueConstraint(
+                fields=["session", "question"],
+                name="unique_turn_per_question_in_session",
+            )
+        ]
 
     def __str__(self):
         return f"Turn {self.pk} of session {self.session_id}"
@@ -379,6 +391,11 @@ class Extraction(models.Model):
     )
     payload = models.JSONField(help_text="The proposed field values.")
     confidence = models.FloatField(help_text="Expected range 0.0-1.0.")
+    supporting_quote = models.TextField(
+        blank=True,
+        help_text="Verbatim span of the answer that justifies this record. "
+        "What makes the extraction auditable rather than merely plausible.",
+    )
     status = models.CharField(
         max_length=20,
         choices=ExtractionStatus.choices,

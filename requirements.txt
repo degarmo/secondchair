@@ -2,6 +2,7 @@
 # Regenerate with: pip freeze | sort
 
 # --- Direct dependencies ---
+anthropic==1.2.0
 Django==5.2.17
 djangorestframework==3.18.0
 psycopg2-binary==2.9.12

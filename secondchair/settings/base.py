@@ -45,6 +45,7 @@ DEBUG = env_bool("DEBUG")
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS")
 
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL = env("ANTHROPIC_MODEL", "")
 
 INSTALLED_APPS = [
     "django.contrib.admin",

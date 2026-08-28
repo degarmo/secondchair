@@ -1,4 +1,9 @@
-from django.contrib import admin
+import json
+
+from django.contrib import admin, messages
+from django.utils.html import format_html
+
+from .services.extraction import promote_extraction, reject_extraction
 
 from .models import (
     Constraint,
@@ -116,14 +121,82 @@ class GapAdmin(admin.ModelAdmin):
 
 @admin.register(Extraction)
 class ExtractionAdmin(admin.ModelAdmin):
-    """The review queue: status is editable straight from the changelist."""
+    """The review queue.
+
+    Nothing here promotes silently: every row's outcome is reported back,
+    and a row that fails validation stays pending so it can be corrected in
+    the detail view and retried.
+    """
 
     list_display = (
-        "target_model", "turn", "confidence", "status", "reviewed_at",
-        "created_object_id",
+        "target_model", "confidence", "status", "payload_preview",
+        "quote_preview", "turn", "created_object_id",
     )
     list_display_links = ("target_model",)
     list_editable = ("status",)
     list_filter = ("status", "target_model")
-    search_fields = ("payload",)
+    search_fields = ("payload", "supporting_quote")
     list_select_related = ("turn",)
+    readonly_fields = ("created_object_id", "reviewed_at")
+    actions = ("approve_and_promote", "reject_selected")
+
+    @admin.display(description="Payload")
+    def payload_preview(self, obj):
+        text = json.dumps(obj.payload, ensure_ascii=False)
+        return text if len(text) <= 90 else f"{text[:89]}\u2026"
+
+    @admin.display(description="Supporting quote")
+    def quote_preview(self, obj):
+        quote = obj.supporting_quote or ""
+        shown = quote if len(quote) <= 90 else f"{quote[:89]}\u2026"
+        if quote.startswith("[UNVERIFIED] "):
+            return format_html("<span style=\"color:#8e2a2a\">{}</span>", shown)
+        return shown
+
+    @admin.action(description="Approve and promote")
+    def approve_and_promote(self, request, queryset):
+        promoted, failures = [], []
+        for extraction in queryset:
+            obj, errors = promote_extraction(extraction)
+            if obj is None:
+                failures.append((extraction, errors))
+            else:
+                promoted.append((extraction, obj))
+
+        if promoted:
+            self.message_user(
+                request,
+                "Promoted {}: {}.".format(
+                    len(promoted),
+                    "; ".join(
+                        f"{e.target_model} #{o.pk} (from extraction {e.pk})"
+                        for e, o in promoted
+                    ),
+                ),
+                messages.SUCCESS,
+            )
+        # Each failure is reported separately with its own reasons -- a
+        # partial success reported as one vague warning is how bad records
+        # get through.
+        for extraction, errors in failures:
+            self.message_user(
+                request,
+                f"Extraction {extraction.pk} ({extraction.target_model}) "
+                f"not promoted, left pending: {'; '.join(errors)}",
+                messages.ERROR,
+            )
+
+    @admin.action(description="Reject")
+    def reject_selected(self, request, queryset):
+        rejected = [
+            reject_extraction(e, reason="Rejected from the admin queue").pk
+            for e in queryset
+        ]
+        self.message_user(
+            request,
+            f"Rejected {len(rejected)} extraction(s): "
+            f"{', '.join(str(pk) for pk in rejected)}."
+            if rejected
+            else "No extractions selected.",
+            messages.SUCCESS if rejected else messages.WARNING,
+        )
