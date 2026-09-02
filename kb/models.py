@@ -19,6 +19,23 @@ class Visibility(models.TextChoices):
     PRIVATE = "private", "Private"
 
 
+class Audience(models.TextChoices):
+    """Who is asking. Maps to the visibility levels they may read."""
+
+    PUBLIC = "public", "Public"
+    RECRUITER = "recruiter", "Recruiter"
+    OWNER = "owner", "Candidate"
+
+
+# Least- to most-privileged. An audience sees its own level and everything
+# below it; an unknown audience sees nothing.
+VISIBILITY_BY_AUDIENCE = {
+    Audience.PUBLIC: [Visibility.PUBLIC],
+    Audience.RECRUITER: [Visibility.PUBLIC, Visibility.RECRUITER],
+    Audience.OWNER: [Visibility.PUBLIC, Visibility.RECRUITER, Visibility.PRIVATE],
+}
+
+
 class SourceKind(models.TextChoices):
     RESUME = "resume", "Resume"
     INTAKE_TURN = "intake_turn", "Intake turn"
@@ -143,12 +160,33 @@ class Question(models.Model):
         return self.key
 
 
+class KnowledgeItemQuerySet(models.QuerySet):
+    def verified(self):
+        return self.filter(verified=True)
+
+    def visible_to(self, audience):
+        """The only supported way to read records for an answer.
+
+        Applies both gates: a record must have been approved by a human,
+        and must sit at or below the asker's clearance. An unknown audience
+        gets nothing rather than defaulting open, so a typo in an audience
+        name cannot leak private records.
+        """
+        try:
+            allowed = VISIBILITY_BY_AUDIENCE[Audience(audience)]
+        except ValueError:
+            return self.none()
+        return self.verified().filter(visibility__in=allowed)
+
+
 class KnowledgeItem(models.Model):
     """Abstract base for everything that asserts something about the candidate.
 
     PROTECT on ``source`` is deliberate: deleting a source must not silently
     orphan the claims that cite it.
     """
+
+    objects = KnowledgeItemQuerySet.as_manager()
 
     source = models.ForeignKey(
         Source, on_delete=models.PROTECT, related_name="%(class)s_items"

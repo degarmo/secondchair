@@ -1,0 +1,269 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>second chair</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F0F1EC; --ink:#15171B; --graphite:#6B7079; --rule:#D2D5CC;
+  --indigo:#2B3A8F; --oxblood:#8E2A2A; --moss:#3F6B4A;
+  --serif:'Newsreader',Georgia,serif; --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+button{font:inherit;color:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+:focus-visible{outline:2px solid var(--indigo);outline-offset:3px}
+.eyebrow{font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--graphite)}
+
+header{border-bottom:1px solid var(--ink);padding:1.4rem 2.5rem;display:flex;align-items:baseline;justify-content:space-between;gap:1.5rem;flex-wrap:wrap}
+h1{font-family:var(--serif);font-size:28px;font-weight:500;letter-spacing:-.015em;margin:0}
+h1 em{font-style:italic;color:var(--indigo)}
+select{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:.5rem .6rem;border:1px solid var(--rule);border-radius:2px;background:transparent;color:var(--ink)}
+
+main{display:grid;grid-template-columns:minmax(0,1fr) 22rem;align-items:start}
+.stage{padding:3rem max(2.5rem,calc(100% - 52rem)) 5rem 2.5rem;min-width:0}
+.margin{position:sticky;top:0;border-left:1px solid var(--rule);padding:3rem 2rem 5rem;min-height:100vh}
+
+/* The mic is the whole interface, so it gets the whole gesture. */
+.mic{display:flex;align-items:center;gap:1.1rem;background:none;border:none;padding:0;margin-bottom:2.5rem}
+.dot{width:66px;height:66px;border-radius:50%;border:1px solid var(--ink);background:var(--ink);flex:none;display:grid;place-items:center;transition:transform 140ms}
+.mic:hover:not(:disabled) .dot{transform:scale(1.04)}
+.dot svg{width:26px;height:26px;fill:var(--paper)}
+.mic[data-listening="true"] .dot{background:var(--oxblood);border-color:var(--oxblood);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(142,42,42,.35)}50%{box-shadow:0 0 0 14px rgba(142,42,42,0)}}
+.mic-label{text-align:left}
+.mic-label b{display:block;font-family:var(--serif);font-size:21px;font-weight:400}
+.mic-label span{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--graphite)}
+
+.heard{font-family:var(--serif);font-size:23px;line-height:1.45;margin:0 0 .4rem;text-indent:-.4em}
+.heard::before{content:'\201C';color:var(--indigo)}
+.heard::after{content:'\201D';color:var(--indigo)}
+.heard[data-interim="true"]{color:var(--graphite)}
+.answer{font-family:var(--serif);font-size:20px;line-height:1.65;margin:1.6rem 0 0}
+.declined{border-left:2px solid var(--oxblood);padding-left:1.1rem}
+.declined .eyebrow{color:var(--oxblood)}
+.notice{font-family:var(--mono);font-size:11px;letter-spacing:.05em;line-height:1.7;color:var(--oxblood);border:1px solid currentColor;border-radius:2px;padding:.75rem .9rem;margin:1.5rem 0}
+.working{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--graphite)}
+.working::after{content:'';animation:dots 1.2s steps(4,end) infinite}
+@keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+
+.fallback{margin-top:2.5rem;display:flex;gap:.6rem;flex-wrap:wrap}
+.fallback input{flex:1 1 22rem;font-family:var(--serif);font-size:17px;padding:.7rem .9rem;border:1px solid var(--rule);border-radius:2px;background:rgba(255,255,255,.55);color:var(--ink)}
+.fallback input:focus{outline:none;border-color:var(--indigo);background:#fff}
+.btn{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:.6rem 1.1rem;border-radius:2px;border:1px solid var(--ink);background:var(--ink);color:var(--paper)}
+
+.cite{border-top:1px solid var(--rule);padding:.9rem 0}
+.cite:last-child{border-bottom:1px solid var(--rule)}
+.cite-head{display:flex;gap:.5rem;align-items:baseline;margin-bottom:.5rem}
+.marker{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--indigo);border:1px solid currentColor;border-radius:2px;padding:.05rem .3rem;flex:none}
+.cite-label{font-family:var(--mono);font-size:10.5px;color:var(--graphite)}
+.cite-record{font-family:var(--serif);font-size:15px;line-height:1.5;margin:0 0 .5rem}
+.quote{font-family:var(--serif);font-style:italic;font-size:14px;line-height:1.55;margin:0;padding-left:.75rem;border-left:2px solid var(--rule);color:#34383F;white-space:pre-wrap}
+.margin-empty{font-family:var(--mono);font-size:11px;line-height:1.9;color:var(--graphite)}
+
+@media(max-width:62rem){
+  main{grid-template-columns:minmax(0,1fr)}
+  .stage{padding:2rem 1.25rem 3rem}
+  header{padding:1.2rem 1.25rem}
+  .margin{position:static;min-height:0;border-left:none;border-top:1px solid var(--ink);padding:2rem 1.25rem 4rem}
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>second<em>chair</em></h1>
+  <label class="eyebrow">Asking as
+    <select id="audience">
+      <option value="recruiter" selected>Recruiter</option>
+      <option value="public">Public</option>
+      <option value="owner">Candidate</option>
+    </select>
+  </label>
+</header>
+
+<main>
+  <section class="stage">
+    <button class="mic" id="mic" data-listening="false">
+      <span class="dot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12z"/></svg></span>
+      <span class="mic-label"><b id="micTitle">Ask a question</b><span id="micHint">Click, then speak</span></span>
+    </button>
+
+    <div id="output"></div>
+
+    <form class="fallback" id="typed">
+      <input id="typedText" placeholder="or type a question" aria-label="Type a question">
+      <button class="btn" type="submit">Ask</button>
+    </form>
+  </section>
+
+  <aside class="margin">
+    <div class="eyebrow" style="margin-bottom:1rem" id="marginTitle">Sources</div>
+    <div id="citations"><div class="margin-empty">Every answer arrives with<br>the records behind it.</div></div>
+  </aside>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const mic = document.getElementById("mic");
+  const micTitle = document.getElementById("micTitle");
+  const micHint = document.getElementById("micHint");
+  const output = document.getElementById("output");
+  const citations = document.getElementById("citations");
+  const marginTitle = document.getElementById("marginTitle");
+  const audience = document.getElementById("audience");
+
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null, listening = false, busy = false;
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+    (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  const cookie = (name) => document.cookie.split("; ")
+    .find((row) => row.startsWith(name + "="))?.split("=")[1];
+
+  function setMic(state, title, hint) {
+    mic.dataset.listening = state;
+    micTitle.textContent = title;
+    micHint.textContent = hint;
+  }
+
+  function showHeard(text, interim) {
+    output.innerHTML = `<p class="heard" data-interim="${interim}">${esc(text)}</p>`;
+  }
+
+  // Speech synthesis reads only the answer text. Citations are shown, never
+  // spoken -- reading ids aloud would make the answer unlistenable.
+  function speak(text) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = window.speechSynthesis.getVoices()
+      .find((v) => /en-GB|en_GB/.test(v.lang) && !/Google/.test(v.name))
+      || window.speechSynthesis.getVoices().find((v) => v.lang.startsWith("en"));
+    if (voice) utterance.voice = voice;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function renderCitations(list) {
+    if (!list.length) {
+      marginTitle.textContent = "Sources";
+      citations.innerHTML =
+        `<div class="margin-empty">No records support that,<br>so nothing is cited.<br>That is the intended behaviour.</div>`;
+      return;
+    }
+    marginTitle.textContent = `Sources · ${list.length}`;
+    citations.innerHTML = list.map((c, i) => `
+      <div class="cite">
+        <div class="cite-head">
+          <span class="marker">${i + 1}</span>
+          <span class="cite-label">${esc(c.source_label)}</span>
+        </div>
+        <p class="cite-record">${esc(c.record)}</p>
+        ${c.quote ? `<p class="quote">${esc(c.quote)}</p>` : ""}
+      </div>`).join("");
+  }
+
+  async function ask(question) {
+    if (busy || !question.trim()) return;
+    busy = true;
+    showHeard(question, false);
+    output.insertAdjacentHTML("beforeend", `<p class="working" id="w">Checking the record</p>`);
+
+    try {
+      const response = await fetch("/api/ask/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": cookie("csrftoken") || "",
+        },
+        body: JSON.stringify({ question, audience: audience.value }),
+      });
+      const data = await response.json();
+      document.getElementById("w")?.remove();
+
+      if (!response.ok) {
+        output.insertAdjacentHTML("beforeend",
+          `<div class="notice">${esc(data.detail || "Request failed.")}</div>`);
+        renderCitations([]);
+        return;
+      }
+
+      const block = data.answered
+        ? `<p class="answer">${esc(data.answer)}</p>`
+        : `<div class="declined"><div class="eyebrow" style="margin-bottom:.4rem">Not in the record</div>
+           <p class="answer" style="margin-top:0">${esc(data.answer)}</p></div>`;
+      output.insertAdjacentHTML("beforeend", block);
+      renderCitations(data.citations || []);
+      speak(data.answer);
+    } catch (error) {
+      document.getElementById("w")?.remove();
+      output.insertAdjacentHTML("beforeend",
+        `<div class="notice">${esc(error.message)}</div>`);
+    } finally {
+      busy = false;
+    }
+  }
+
+  if (Recognition) {
+    recognition = new Recognition();
+    recognition.lang = "en-GB";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = (event) => {
+      let text = "";
+      for (const result of event.results) text += result[0].transcript;
+      const final = event.results[event.results.length - 1].isFinal;
+      showHeard(text, !final);
+      if (final) ask(text);
+    };
+    recognition.onerror = (event) => {
+      setMic("false", "Ask a question", "Click, then speak");
+      listening = false;
+      const message = event.error === "not-allowed"
+        ? "Microphone permission was refused. Allow it in the address bar, or type below."
+        : `Speech recognition error: ${event.error}. You can type instead.`;
+      output.innerHTML = `<div class="notice">${esc(message)}</div>`;
+    };
+    recognition.onend = () => {
+      listening = false;
+      setMic("false", "Ask a question", "Click, then speak");
+    };
+
+    mic.addEventListener("click", () => {
+      if (listening) { recognition.stop(); return; }
+      window.speechSynthesis?.cancel();
+      listening = true;
+      setMic("true", "Listening…", "Click again to stop");
+      recognition.start();
+    });
+  } else {
+    // Firefox and Safari have no SpeechRecognition. Say so plainly and
+    // leave the typed path working rather than presenting a dead button.
+    mic.disabled = true;
+    setMic("false", "Voice input unavailable", "This browser has no speech recognition — use Chrome, or type below");
+  }
+
+  document.getElementById("typed").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = document.getElementById("typedText");
+    ask(input.value);
+    input.value = "";
+  });
+
+  window.speechSynthesis?.getVoices();
+})();
+</script>
+</body>
+</html>

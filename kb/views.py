@@ -12,12 +12,15 @@ later is a matter of applying permission classes, not restructuring.
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.views.generic import TemplateView
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import IntakeSession, IntakeTurn, Question, Source
+from .models import Audience, IntakeSession, IntakeTurn, Question, Source
+from .services.answering import answer_question
+from .services.extraction import ExtractionError
 from .serializers import (
     IntakeSessionSerializer,
     IntakeTurnSerializer,
@@ -163,3 +166,43 @@ def transcript(request, pk):
             "turns": IntakeTurnSerializer(turns, many=True).data,
         }
     )
+
+
+@api_view(["POST"])
+def ask(request):
+    """POST /api/ask/ -- answer a question about the candidate.
+
+    ``audience`` is a request parameter because the demo has no auth. In
+    anything real it would come from the session; what is being exercised
+    here is that the filter runs in the query, not in the prompt.
+    """
+    question = (request.data.get("question") or "").strip()
+    if not question:
+        return Response(
+            {"detail": "A question is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    audience = request.data.get("audience") or Audience.RECRUITER
+    if audience not in Audience.values:
+        return Response(
+            {"detail": f"Unknown audience '{audience}'. Expected one of: "
+                       f"{', '.join(Audience.values)}."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        return Response(answer_question(question, audience))
+    except ExtractionError as exc:
+        return Response(
+            {"detail": str(exc)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
+class VoicePage(TemplateView):
+    """The spoken interface. Speech recognition and synthesis both run in
+    the browser, so no audio ever leaves the machine -- only the transcript
+    is sent, and only to answer against the knowledge base."""
+
+    template_name = "kb/ask.html"
