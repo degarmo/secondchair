@@ -16,3 +16,6 @@ staticfiles/
 
 # OS
 .DS_Store
+
+# Intake answers are personal; regenerate with export_intake.
+intake.md
