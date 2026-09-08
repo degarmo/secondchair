@@ -24,3 +24,6 @@ frontend/dist/
 # OS
 .DS_Store
 *.tsbuildinfo
+
+# Derived from the design export by design/extract.py
+design/_unpacked/

@@ -6,7 +6,8 @@ agent that answers hiring-manager questions in his voice, grounded strictly in
 
 - **Backend:** Django 5 + Django REST Framework, PostgreSQL, Anthropic Claude
   (`claude-sonnet-5`).
-- **Frontend:** React 19 + TypeScript (Vite), CSS modules, `lucide-react`.
+- **Frontend:** React 19 + TypeScript (Vite), a design system ported from a
+  Claude Design export, self-hosted webfonts.
 - **Deploy:** Render — one web service, one static site, one Postgres.
 
 ```
@@ -15,10 +16,11 @@ backend/
   agent/           The interview endpoint, model, throttle, tests
   kb/              KNOWLEDGE_BASE.md — the single source of truth
 frontend/
-  src/sections/    Hero, About, Track, Builds, Interview, Footer
-  src/components/  Nav, AgentChat, ParallaxLayer
-  src/hooks/       useSpeechRecognition, usePrefersReducedMotion
+  src/ds/          The design system, ported to TSX (core, site, chat, Icon)
+  src/styles/      tokens.css + fonts.css, generated from the design export
+  src/components/  InterviewAgent - the one stateful piece
   src/content.ts   Site copy, all of it copied from the knowledge base
+design/            The Claude Design export and its extractor
 render.yaml        Blueprint for both services and the database
 ```
 
@@ -154,6 +156,40 @@ python manage.py list_voices          # needs ELEVENLABS_API_KEY set
 
 Both variables are optional. With neither set, the site behaves exactly as it
 did before voice existed.
+
+## Design
+
+The visual system comes from a Claude Design export, kept in `design/` as the
+source of truth. `design/extract.py` unpacks it:
+
+```bash
+python3 design/extract.py "design/Cory DeGarmo.dc.html"
+```
+
+That regenerates `frontend/src/styles/tokens.css` and `frontend/src/styles/fonts.css`
+and writes the woff2 files into `frontend/public/fonts/`. Neither CSS file is
+edited by hand — site-specific overrides go in `global.css` so a regenerated
+export keeps diffing cleanly.
+
+Two things are deliberate departures from the export:
+
+- **Fonts are real files, not base64.** The export inlines all three families
+  into one 504 KB stylesheet. That is a render-blocking download before first
+  paint. Extracted to eight woff2 files (latin + latin-ext, upright only), the
+  stylesheet is 11 KB and the browser fetches only the faces a page actually
+  uses, gated by `unicode-range`.
+- **`--text-faint` is lightened** from #6c7480 to #7b838f. The original fails
+  WCAG AA on all three dark surfaces it is used on (3.97–4.24:1 against a 4.5:1
+  floor). The override is documented in `global.css`; the fix belongs upstream
+  in the design file.
+
+The components in `src/ds/` are hand-ported from the export's compiled bundle,
+which targets React 18 UMD and a global namespace. After a regenerate, diff
+`design/_unpacked/_ds_bundle.js` against `src/ds/` to see what moved.
+
+The export's light theme is fully tokenised and works via
+`<html data-theme="light">`, but the page template ships no toggle, so neither
+does this site.
 
 ## Deploying
 
