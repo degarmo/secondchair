@@ -2,7 +2,8 @@ import hashlib
 import uuid
 
 from django.conf import settings
-from django.http import JsonResponse
+from django.core.cache import cache
+from django.http import Http404, HttpResponse, JsonResponse
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,7 +11,8 @@ from rest_framework.views import APIView
 from agent.claude import AgentUnavailable, ask
 from agent.models import InterviewLog
 from agent.serializers import InterviewRequestSerializer
-from agent.throttling import InterviewRateThrottle
+from agent.speech import SpeechUnavailable, speech_enabled, synthesize
+from agent.throttling import InterviewRateThrottle, SpeechRateThrottle
 
 
 def client_ip(request) -> str:
@@ -57,14 +59,72 @@ class InterviewView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        InterviewLog.objects.create(
+        log = InterviewLog.objects.create(
             session_id=session_id,
             question=data["question"],
             answer=answer,
             ip_hash=hash_ip(request),
         )
 
-        return Response({"answer": answer, "session_id": str(session_id)})
+        return Response(
+            {
+                "answer": answer,
+                "session_id": str(session_id),
+                # The id the client passes to the speech endpoint, and whether
+                # offering a play button is worth it at all.
+                "log_id": log.id,
+                "speech_available": speech_enabled(),
+            }
+        )
+
+
+class AnswerSpeechView(APIView):
+    """GET audio of an answer the agent has already given.
+
+    Addressed by log id rather than by text on purpose: this endpoint can
+    only ever speak sentences the agent itself produced, so it cannot be
+    turned into free text-to-speech billed to Cory.
+    """
+
+    authentication_classes: list = []
+    permission_classes: list = []
+    throttle_classes = [SpeechRateThrottle]
+
+    def get(self, request, log_id: int):
+        if not speech_enabled():
+            return Response(
+                {
+                    "detail": "Spoken answers are not available right now.",
+                    "code": "speech_unavailable",
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            log = InterviewLog.objects.only("id", "answer").get(pk=log_id)
+        except InterviewLog.DoesNotExist:
+            raise Http404("No such answer.")
+
+        cache_key = f"speech:{settings.ELEVENLABS_VOICE_ID}:{log.id}"
+        audio = cache.get(cache_key)
+
+        if audio is None:
+            try:
+                audio = synthesize(log.answer)
+            except SpeechUnavailable:
+                return Response(
+                    {
+                        "detail": "That answer could not be spoken. Read it above.",
+                        "code": "speech_unavailable",
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            cache.set(cache_key, audio, settings.SPEECH_CACHE_SECONDS)
+
+        response = HttpResponse(audio, content_type="audio/mpeg")
+        response["Content-Length"] = str(len(audio))
+        response["Cache-Control"] = "private, max-age=3600"
+        return response
 
 
 def health(request):

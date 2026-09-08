@@ -163,7 +163,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    "DEFAULT_THROTTLE_RATES": {"interview": "20/hour"},
+    "DEFAULT_THROTTLE_RATES": {"interview": "20/hour", "speech": "60/hour"},
     "EXCEPTION_HANDLER": "agent.exceptions.friendly_exception_handler",
 }
 
@@ -194,6 +194,29 @@ INTERVIEW_QUESTION_MAX_LENGTH = 500
 
 # Shown to visitors when the agent cannot answer (rate limit, upstream error).
 CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL") or "degarmo@gmail.com"
+
+# --- Spoken answers (ElevenLabs) -------------------------------------------
+#
+# Optional. With no key or no voice id the site simply never offers to speak:
+# the frontend hides the play button rather than showing one that fails.
+# List the voices on the account with: python manage.py list_voices
+
+ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
+ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "")
+ELEVENLABS_MODEL_ID = os.environ.get("ELEVENLABS_MODEL_ID") or "eleven_multilingual_v2"
+ELEVENLABS_OUTPUT_FORMAT = (
+    os.environ.get("ELEVENLABS_OUTPUT_FORMAT") or "mp3_44100_128"
+)
+ELEVENLABS_TIMEOUT_SECONDS = float(
+    os.environ.get("ELEVENLABS_TIMEOUT_SECONDS") or 30
+)
+
+# Longest answer that will be sent for synthesis. Answers are already capped
+# by ANTHROPIC_MAX_TOKENS; this bounds the bill if that cap ever changes.
+SPEECH_MAX_CHARS = int(os.environ.get("SPEECH_MAX_CHARS") or 3000)
+
+# Synthesized audio is cached so replaying an answer costs nothing.
+SPEECH_CACHE_SECONDS = int(os.environ.get("SPEECH_CACHE_SECONDS") or 60 * 60 * 24 * 7)
 
 # --- Production hardening --------------------------------------------------
 

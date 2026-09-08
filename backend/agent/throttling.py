@@ -16,3 +16,20 @@ class InterviewRateThrottle(SimpleRateThrottle):
             "scope": self.scope,
             "ident": self.get_ident(request),
         }
+
+
+class SpeechRateThrottle(SimpleRateThrottle):
+    """60 spoken answers per IP per hour.
+
+    Looser than the question limit, because replaying a cached answer is
+    free, but still bounded: synthesis is the part of the site that costs
+    money per use.
+    """
+
+    scope = "speech"
+
+    def get_cache_key(self, request, view):
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": self.get_ident(request),
+        }

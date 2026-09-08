@@ -1,19 +1,39 @@
-import { CornerDownLeft, Send } from "lucide-react";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  CornerDownLeft,
+  Loader2,
+  Mic,
+  Send,
+  Square,
+  Volume2,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 
-import { askInterview, InterviewError, type ChatTurn } from "../api";
+import {
+  askInterview,
+  fetchAnswerAudio,
+  InterviewError,
+  type ChatTurn,
+} from "../api";
 import { CONTACT } from "../content";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import styles from "./AgentChat.module.css";
 
 const QUESTION_MAX_LENGTH = 500;
 
 interface Message extends ChatTurn {
   id: number;
+  /** Present on agent answers once stored, and only then can they be spoken. */
+  logId?: number;
 }
 
 interface Failure {
   kind: "throttled" | "other";
   message: string;
+}
+
+interface Playback {
+  logId: number;
+  status: "loading" | "playing";
 }
 
 interface AgentChatProps {
@@ -29,12 +49,52 @@ export default function AgentChat({ starters }: AgentChatProps) {
   const [failure, setFailure] = useState<Failure | null>(null);
   // Session id lives in React state only. Nothing is written to storage.
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [speechAvailable, setSpeechAvailable] = useState(false);
+  const [playback, setPlayback] = useState<Playback | null>(null);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   const transcriptRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Whatever was typed before dictation started; the transcript is appended
+  // to it rather than replacing what they had written.
+  const draftBaseRef = useRef("");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlsRef = useRef(new Map<number, string>());
+  const audioAbortRef = useRef<AbortController | null>(null);
+
+  const onTranscript = useCallback((transcript: string, isFinal: boolean) => {
+    const base = draftBaseRef.current;
+    const combined = base ? `${base} ${transcript}` : transcript;
+    setDraft(combined.slice(0, QUESTION_MAX_LENGTH));
+    if (isFinal) {
+      inputRef.current?.focus();
+    }
+  }, []);
+
+  const {
+    supported: micSupported,
+    listening,
+    error: micError,
+    stop: stopListening,
+    start: startListening,
+    setError: setMicError,
+  } = useSpeechRecognition({ onTranscript });
+
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  useEffect(() => {
+    const urls = audioUrlsRef.current;
+    return () => {
+      audioAbortRef.current?.abort();
+      audioRef.current?.pause();
+      for (const url of urls.values()) {
+        URL.revokeObjectURL(url);
+      }
+      urls.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const node = transcriptRef.current;
@@ -49,6 +109,10 @@ export default function AgentChat({ starters }: AgentChatProps) {
       return;
     }
 
+    if (listening) {
+      stopListening();
+    }
+
     const history: ChatTurn[] = messages.map(({ role, content }) => ({
       role,
       content,
@@ -57,7 +121,9 @@ export default function AgentChat({ starters }: AgentChatProps) {
     const asked: Message = { id: nextId++, role: "user", content: trimmed };
     setMessages((current) => [...current, asked]);
     setDraft("");
+    draftBaseRef.current = "";
     setFailure(null);
+    setMicError(null);
     setPending(true);
 
     const controller = new AbortController();
@@ -71,9 +137,15 @@ export default function AgentChat({ starters }: AgentChatProps) {
         controller.signal,
       );
       setSessionId(result.session_id);
+      setSpeechAvailable(result.speech_available);
       setMessages((current) => [
         ...current,
-        { id: nextId++, role: "assistant", content: result.answer },
+        {
+          id: nextId++,
+          role: "assistant",
+          content: result.answer,
+          logId: result.log_id,
+        },
       ]);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
@@ -102,6 +174,59 @@ export default function AgentChat({ starters }: AgentChatProps) {
     }
   };
 
+  const stopPlayback = useCallback(() => {
+    audioAbortRef.current?.abort();
+    audioAbortRef.current = null;
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    setPlayback(null);
+  }, []);
+
+  const speak = async (logId: number) => {
+    if (playback?.logId === logId) {
+      stopPlayback();
+      return;
+    }
+
+    stopPlayback();
+    setPlaybackError(null);
+    setPlayback({ logId, status: "loading" });
+
+    try {
+      let url = audioUrlsRef.current.get(logId);
+
+      if (!url) {
+        const controller = new AbortController();
+        audioAbortRef.current = controller;
+        const blob = await fetchAnswerAudio(logId, controller.signal);
+        url = URL.createObjectURL(blob);
+        audioUrlsRef.current.set(logId, url);
+        audioAbortRef.current = null;
+      }
+
+      const audio = audioRef.current;
+      if (!audio) {
+        return;
+      }
+      audio.src = url;
+      await audio.play();
+      setPlayback({ logId, status: "playing" });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+      setPlayback(null);
+      setPlaybackError(
+        error instanceof InterviewError
+          ? error.message
+          : "That answer could not be played.",
+      );
+    }
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -109,11 +234,31 @@ export default function AgentChat({ starters }: AgentChatProps) {
     }
   };
 
+  const onMicClick = () => {
+    if (listening) {
+      stopListening();
+      return;
+    }
+    // Anchor the transcript to whatever is already typed.
+    draftBaseRef.current = draft.trim();
+    startListening();
+  };
+
   const remaining = QUESTION_MAX_LENGTH - draft.length;
   const canSend = draft.trim().length > 0 && !pending;
 
   return (
     <div className={styles.chat}>
+      <audio
+        ref={audioRef}
+        onEnded={() => setPlayback(null)}
+        onError={() => {
+          setPlayback(null);
+          setPlaybackError("That answer could not be played.");
+        }}
+        hidden
+      />
+
       <div
         className={styles.transcript}
         ref={transcriptRef}
@@ -126,6 +271,7 @@ export default function AgentChat({ starters }: AgentChatProps) {
             Ask anything about my background, my work, or what I've shipped.
             Answers come from a knowledge base I wrote, and the agent will tell
             you when something isn't in it.
+            {micSupported ? " Type it, or use the microphone." : ""}
           </p>
         ) : null}
 
@@ -140,6 +286,40 @@ export default function AgentChat({ starters }: AgentChatProps) {
               {message.role === "user" ? "You" : "Cory's agent"}
             </span>
             <div className={styles.bubble}>{message.content}</div>
+
+            {message.role === "assistant" &&
+            speechAvailable &&
+            message.logId !== undefined ? (
+              <button
+                type="button"
+                className={styles.playButton}
+                onClick={() => void speak(message.logId as number)}
+                aria-label={
+                  playback?.logId === message.logId
+                    ? "Stop playing this answer"
+                    : "Play this answer aloud"
+                }
+              >
+                {playback?.logId === message.logId ? (
+                  playback.status === "loading" ? (
+                    <>
+                      <Loader2 size={14} className={styles.spin} aria-hidden="true" />
+                      Loading
+                    </>
+                  ) : (
+                    <>
+                      <Square size={14} aria-hidden="true" />
+                      Stop
+                    </>
+                  )
+                ) : (
+                  <>
+                    <Volume2 size={14} aria-hidden="true" />
+                    Listen
+                  </>
+                )}
+              </button>
+            ) : null}
           </div>
         ))}
 
@@ -190,6 +370,18 @@ export default function AgentChat({ starters }: AgentChatProps) {
         </p>
       ) : null}
 
+      {micError ? (
+        <p className={styles.notice} role="alert">
+          {micError}
+        </p>
+      ) : null}
+
+      {playbackError ? (
+        <p className={styles.notice} role="alert">
+          {playbackError}
+        </p>
+      ) : null}
+
       <form
         className={styles.composer}
         onSubmit={(event) => {
@@ -207,20 +399,54 @@ export default function AgentChat({ starters }: AgentChatProps) {
           value={draft}
           rows={2}
           maxLength={QUESTION_MAX_LENGTH}
-          placeholder="What would you want to ask in a first interview?"
+          placeholder={
+            listening
+              ? "Listening..."
+              : "What would you want to ask in a first interview?"
+          }
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={onKeyDown}
         />
         <div className={styles.composerFooter}>
           <span className={styles.hint}>
-            <CornerDownLeft size={13} aria-hidden="true" /> to send, Shift +
-            Enter for a new line
-            {remaining <= 100 ? ` - ${remaining} characters left` : ""}
+            {listening ? (
+              <>
+                <span className={styles.listeningDot} aria-hidden="true" />
+                Listening - stop when you're done
+              </>
+            ) : (
+              <>
+                <CornerDownLeft size={13} aria-hidden="true" /> to send, Shift +
+                Enter for a new line
+                {remaining <= 100 ? ` - ${remaining} characters left` : ""}
+              </>
+            )}
           </span>
-          <button type="submit" className={styles.send} disabled={!canSend}>
-            <Send size={16} aria-hidden="true" />
-            <span>Send</span>
-          </button>
+
+          <div className={styles.controls}>
+            {micSupported ? (
+              <button
+                type="button"
+                className={`${styles.mic} ${listening ? styles.micLive : ""}`}
+                onClick={onMicClick}
+                disabled={pending}
+                aria-pressed={listening}
+                aria-label={listening ? "Stop dictating" : "Ask by voice"}
+              >
+                {listening ? (
+                  <Square size={16} aria-hidden="true" />
+                ) : (
+                  <Mic size={16} aria-hidden="true" />
+                )}
+                <span>{listening ? "Stop" : "Speak"}</span>
+              </button>
+            ) : null}
+
+            <button type="submit" className={styles.send} disabled={!canSend}>
+              <Send size={16} aria-hidden="true" />
+              <span>Send</span>
+            </button>
+          </div>
         </div>
       </form>
     </div>

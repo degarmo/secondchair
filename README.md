@@ -17,6 +17,7 @@ backend/
 frontend/
   src/sections/    Hero, About, Track, Builds, Interview, Footer
   src/components/  Nav, AgentChat, ParallaxLayer
+  src/hooks/       useSpeechRecognition, usePrefersReducedMotion
   src/content.ts   Site copy, all of it copied from the knowledge base
 render.yaml        Blueprint for both services and the database
 ```
@@ -77,11 +78,12 @@ value with no working default — without it the endpoint returns 503 with an
 
 ```bash
 cd backend && python manage.py check     # Django system checks
-cd backend && python -m pytest           # 22 tests, no network calls
+cd backend && python -m pytest           # 33 tests, no network calls
 cd frontend && npm run build             # tsc --strict, then vite build
 ```
 
-The test suite mocks the Anthropic client; nothing in it spends money.
+The test suite mocks both the Anthropic client and ElevenLabs; nothing in
+it spends money or touches the network.
 
 ## The API
 
@@ -96,7 +98,12 @@ The test suite mocks the Anthropic client; nothing in it spends money.
 ```
 
 ```json
-{ "answer": "...", "session_id": "uuid" }
+{
+  "answer": "...",
+  "session_id": "uuid",
+  "log_id": 42,
+  "speech_available": true
+}
 ```
 
 - Questions over 500 characters return `400`.
@@ -110,7 +117,43 @@ The test suite mocks the Anthropic client; nothing in it spends money.
 - Every successful answer is written to `InterviewLog` with a salted SHA-256
   hash of the caller's IP. Raw addresses are never stored.
 
+`GET /api/interview/<log_id>/speech/` returns `audio/mpeg` of an answer the
+agent already gave.
+
+- It takes an **answer id, not text**. An endpoint that speaks arbitrary
+  strings is a free text-to-speech service billed to Cory; this one can only
+  voice sentences the agent itself produced.
+- 60 plays per IP per hour, and audio is cached for a week, so replaying an
+  answer never bills twice.
+- Returns `503` when `ELEVENLABS_API_KEY` or `ELEVENLABS_VOICE_ID` is unset.
+  The frontend reads `speech_available` from the interview response and hides
+  the play button entirely rather than offering a control that fails.
+
 `GET /healthz/` returns `{"status": "ok"}` for Render's health check.
+
+## Voice
+
+Visitors can ask by voice and hear answers back. The two halves work
+differently on purpose.
+
+**Asking** uses the browser's own Web Speech API. No key, no cost, nothing
+sent to our server: Chrome and Edge transcribe through Google, Safari through
+Apple. Firefox has no implementation, so the microphone button does not
+appear there and the textarea works as usual. The transcript lands in the box
+for review rather than sending itself, because recognition makes mistakes and
+a garbled question wastes a model call.
+
+**Answering aloud** uses ElevenLabs through the endpoint above, one answer at
+a time, only when the visitor presses Listen. To turn it on:
+
+```bash
+cd backend
+python manage.py list_voices          # needs ELEVENLABS_API_KEY set
+# put the chosen id in .env as ELEVENLABS_VOICE_ID, then restart
+```
+
+Both variables are optional. With neither set, the site behaves exactly as it
+did before voice existed.
 
 ## Deploying
 

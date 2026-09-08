@@ -47,6 +47,12 @@ services:
         value: claude-sonnet-5
       - key: CONTACT_EMAIL
         value: degarmo@gmail.com
+      # Spoken answers. Leave unset and the site simply never offers to
+      # speak; set both to turn the play buttons on.
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
 
   - type: web
     name: cd-site-web

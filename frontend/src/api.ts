@@ -8,6 +8,10 @@ export interface ChatTurn {
 export interface InterviewResponse {
   answer: string;
   session_id: string;
+  /** Id of the stored answer, used to ask for the spoken version. */
+  log_id: number;
+  /** False when the site has no voice configured; hide the play button. */
+  speech_available: boolean;
 }
 
 /** Why an ask failed, in the terms the chat UI needs to react to. */
@@ -98,4 +102,46 @@ export async function askInterview(
   }
 
   return (await response.json()) as InterviewResponse;
+}
+
+/**
+ * Fetch the spoken version of an answer the agent already gave.
+ *
+ * Takes an answer id rather than text: the endpoint can only voice
+ * sentences the agent itself produced.
+ */
+export async function fetchAnswerAudio(
+  logId: number,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/interview/${logId}/speech/`, {
+      signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
+    }
+    throw new InterviewError("network", "Could not reach the voice service.");
+  }
+
+  if (!response.ok) {
+    const detail = await readDetail(response);
+    if (response.status === 429) {
+      throw new InterviewError(
+        "throttled",
+        detail ?? "Too many spoken answers in one hour.",
+        429,
+      );
+    }
+    throw new InterviewError(
+      "unavailable",
+      detail ?? "That answer could not be spoken.",
+      response.status,
+    );
+  }
+
+  return await response.blob();
 }
