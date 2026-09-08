@@ -1,0 +1,84 @@
+/*
+ * Every visual decision on the site resolves to a token in this file.
+ * Reskinning from a design export should mean editing these values, not
+ * hunting through components.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg: #0b0c0e;
+  --bg-raised: #131519;
+  --bg-sunken: #08090a;
+  --bg-overlay: rgba(11, 12, 14, 0.82);
+
+  /* Lines */
+  --border: #23262c;
+  --border-strong: #363a43;
+
+  /* Ink */
+  --text: #ecebe7;
+  --text-muted: #a0a5ad;
+  --text-faint: #6c717a;
+
+  /* Accent */
+  --accent: #d9a066;
+  --accent-strong: #f0bc82;
+  --accent-ink: #1a1206;
+  --accent-wash: rgba(217, 160, 102, 0.12);
+
+  /* Status */
+  --status-deployed: #82b892;
+  --status-beta: #d9a066;
+  --status-active: #7ba6cf;
+
+  /* Type */
+  --font-display: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    monospace;
+
+  --step-6: clamp(2.75rem, 1.6rem + 5.5vw, 5.5rem);
+  --step-5: clamp(2.1rem, 1.4rem + 3.2vw, 3.5rem);
+  --step-4: clamp(1.6rem, 1.25rem + 1.7vw, 2.3rem);
+  --step-3: clamp(1.3rem, 1.15rem + 0.8vw, 1.6rem);
+  --step-2: clamp(1.1rem, 1.03rem + 0.35vw, 1.25rem);
+  --step-1: 1rem;
+  --step-0: 0.9375rem;
+  --step--1: 0.8125rem;
+  --step--2: 0.6875rem;
+
+  --leading-tight: 1.1;
+  --leading-snug: 1.35;
+  --leading-body: 1.65;
+  --tracking-wide: 0.16em;
+
+  /* Space */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+  --space-9: 7rem;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 14px;
+
+  /* Layout */
+  --measure: 62ch;
+  --container: 70rem;
+  --nav-height: 3.75rem;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --duration-fast: 140ms;
+  --duration: 260ms;
+  --duration-slow: 520ms;
+}

@@ -1,0 +1,9 @@
+.backdrop {
+  background:
+    radial-gradient(
+      34rem 24rem at 88% 24%,
+      rgba(217, 160, 102, 0.07),
+      transparent 70%
+    ),
+    var(--bg);
+}

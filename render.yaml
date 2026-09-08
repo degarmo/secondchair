@@ -1,38 +1,71 @@
+# Render blueprint for the site: a Django API, a React static site, and a
+# Postgres instance. Render only reads render.yaml from the repository root,
+# which is why this file sits here rather than in backend/.
+#
+# After the first deploy, set ANTHROPIC_API_KEY on the API service. Every
+# other value below is either generated or wired between services.
+
+databases:
+  - name: cd-site-db
+    databaseName: cd_site
+    user: cd_site
+    plan: basic-256mb
+
 services:
   - type: web
-    name: secondchair
+    name: cd-site-api
     runtime: python
-    plan: free
-    region: oregon
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
-      python manage.py collectstatic --no-input
-      python manage.py migrate
-    startCommand: gunicorn secondchair.wsgi:application
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --no-input
+    preDeployCommand: python manage.py migrate
+    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 90
+    healthCheckPath: /healthz/
     envVars:
       - key: PYTHON_VERSION
         value: "3.13.15"
-      - key: DJANGO_SETTINGS_MODULE
-        value: secondchair.settings.production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cd-site-db
+          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
         value: "0"
+      # RENDER_EXTERNAL_HOSTNAME is appended to ALLOWED_HOSTS automatically.
+      # Add a custom domain here once one is attached.
       - key: ALLOWED_HOSTS
-        # Left empty on purpose: production settings append
-        # RENDER_EXTERNAL_HOSTNAME, which Render injects at runtime. Set this
-        # to a comma-separated list only when adding a custom domain.
         value: ""
+      - key: CORS_ALLOWED_ORIGINS
+        fromService:
+          name: cd-site-web
+          type: static
+          property: url
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: DATABASE_URL
-        fromDatabase:
-          name: secondchair-db
-          property: connectionString
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
+      - key: CONTACT_EMAIL
+        value: degarmo@gmail.com
 
-databases:
-  - name: secondchair-db
-    databaseName: secondchair
-    plan: free
-    region: oregon
+  - type: web
+    name: cd-site-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          name: cd-site-api
+          type: web
+          property: url
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
