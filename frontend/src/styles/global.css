@@ -57,50 +57,64 @@ hr { border: 0; border-top: var(--border-hair); margin: 0; }
 /*
  * Surface and text overrides for the dark theme.
  *
- * The export's ground is near-black (#07080a page, #0b0c0e sunken), which
- * reads as flat rather than as a graphite instrument panel. Every surface is
- * lifted two steps up the export's own --ink ramp, so the layering
- * relationships and the ramp itself are unchanged and a regenerated
- * tokens.css still diffs cleanly.
+ * The export's ground is near-black (#0b0c0e page, #07080a sunken), which
+ * reads as flat rather than as a graphite instrument panel. The whole stack
+ * is lifted onto mid-graphite, keeping the export's layering order:
  *
- *   sunken   #07080a -> #101216      card       #16181d -> #21242b
- *   page     #0b0c0e -> #16181d      card:hover #1b1e24 -> #2a2e37
- *   surface1 #101216 -> #1b1e24
+ *   sunken   #07080a -> #1b1e24      card       #16181d -> #31353e
+ *   page     #0b0c0e -> #23262d      card:hover #1b1e24 -> #3c414c
+ *   surface1 #101216 -> #292d35
  *
- * Lighter ground costs contrast, so the four tones that sit on it move too.
- * Worst-case ratios, measured against the lightest surface each one can land
- * on, all clear the 4.5:1 WCAG AA floor for small text:
+ * That is roughly five times the luminance of the original page colour
+ * (0.4% -> 1.9%), so it is a change you can see rather than measure.
  *
- *   --text-muted   #aeb4bd  6.52:1      --status-deployed #5cc294  4.83:1
- *   --text-faint   #949ba7  4.86:1      --status-live     #e8ad51  4.77:1
- *   --danger       #e89184  4.75:1      --status-beta     #aeb4bd  5.22:1
+ * Everything drawn on top has to move with it, in three groups:
  *
- * --danger and --status-deployed were already under the floor on the old
- * ground (4.05:1 and 4.05:1); they are only visible in the error notice and
- * the project badges, which is why the audit never caught them.
+ * 1. Text. Worst-case ratios across all five surfaces, all clear the 4.5:1
+ *    WCAG AA floor for small text, and the three tiers stay distinguishable:
+ *      --text-body  #d6dae0  7.29:1   --text-faint #aeb4bd  4.90:1
+ *      --text-muted #c2c7ce  6.02:1   --text-accent #e8ad51 5.13:1
+ *
+ * 2. Status and notice colours, measured against their own tinted bands
+ *    composited over the card and its hover state:
+ *      --danger #f2b5ab 5.01:1   --status-deployed #80dcb4 5.03:1
+ *      --status-beta #c2c7ce 4.89:1   --status-live amber-300 4.63:1
+ *
+ * 3. Borders. This is the part that is easy to miss: --border-subtle was
+ *    --ink-600 (#2a2e37), which is now *darker* than the card it outlines.
+ *    Left alone the borders would invert and disappear, so the three border
+ *    tokens are lifted clear of the lightest surface.
  *
  * Scoped with :not([data-theme="light"]) deliberately. [data-theme="light"]
  * and :root have equal specificity, and this file is imported after
  * tokens.css, so a bare :root block here would win over the light theme and
  * paint dark-tuned colours onto white.
+ *
+ * To nudge the whole ground, move the five surfaces together and re-check
+ * --text-faint, which is the first thing to fail.
  */
 :root:not([data-theme="light"]) {
-  --bg-sunken: var(--ink-850);
-  --bg-page: var(--ink-800);
-  --surface-1: var(--ink-750);
-  --surface-2: var(--ink-700);
-  --surface-card: var(--ink-700);
-  --surface-card-hover: var(--ink-600);
-  --surface-inset: var(--ink-850);
-  --surface-glass: rgba(22, 24, 29, 0.72);
+  --bg-sunken: #1b1e24;
+  --bg-page: #23262d;
+  --surface-1: #292d35;
+  --surface-2: #31353e;
+  --surface-card: #31353e;
+  --surface-card-hover: #3c414c;
+  --surface-inset: #1b1e24;
+  --surface-glass: rgba(35, 38, 45, 0.72);
 
-  --text-muted: var(--slate-200);
-  --text-faint: #949ba7;
+  --text-muted: #c2c7ce;
+  --text-faint: #aeb4bd;
 
-  --danger: #e89184;
-  --status-live: var(--amber-400);
-  --status-deployed: #5cc294;
-  --status-beta: var(--slate-200);
+  --border-hairline: rgba(255, 255, 255, 0.1);
+  --border-subtle: #414652;
+  --border-strong: #525865;
+  --grid-line: rgba(255, 255, 255, 0.05);
+
+  --danger: #f2b5ab;
+  --status-live: var(--amber-300);
+  --status-deployed: #80dcb4;
+  --status-beta: #c2c7ce;
 }
 
 /* Anchors land clear of the fixed nav. */
