@@ -41,7 +41,9 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         fromService:
           name: cd-site-web
-          type: static
+          # "web", not "static": the site is declared as type web with
+          # runtime static, and fromService matches on the declared type.
+          type: web
           property: host
       - key: ANTHROPIC_API_KEY
         sync: false
