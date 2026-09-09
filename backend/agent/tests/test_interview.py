@@ -172,3 +172,25 @@ def _failing_client():
     client = MagicMock()
     client.messages.create.side_effect = anthropic.APIConnectionError(request=None)
     return client
+
+
+def test_client_sends_no_workspace_header_by_default(settings):
+    """A workspace-scoped key needs no extra header."""
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    settings.ANTHROPIC_WORKSPACE_ID = ""
+    claude.reset_client()
+
+    client = claude.get_client()
+
+    assert "anthropic-workspace-id" not in client.default_headers
+
+
+def test_client_sends_the_workspace_header_when_configured(settings):
+    """An account-level key is only accepted when the workspace travels with it."""
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    settings.ANTHROPIC_WORKSPACE_ID = "wrkspc_test"
+    claude.reset_client()
+
+    client = claude.get_client()
+
+    assert client.default_headers["anthropic-workspace-id"] == "wrkspc_test"

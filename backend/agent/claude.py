@@ -24,10 +24,14 @@ def get_client() -> anthropic.Anthropic:
     if _client is None:
         if not settings.ANTHROPIC_API_KEY:
             raise AgentUnavailable("ANTHROPIC_API_KEY is not set.")
+        headers = {}
+        if settings.ANTHROPIC_WORKSPACE_ID:
+            headers["anthropic-workspace-id"] = settings.ANTHROPIC_WORKSPACE_ID
         _client = anthropic.Anthropic(
             api_key=settings.ANTHROPIC_API_KEY,
             timeout=settings.ANTHROPIC_TIMEOUT_SECONDS,
             max_retries=1,
+            default_headers=headers,
         )
     return _client
 

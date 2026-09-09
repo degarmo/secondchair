@@ -180,6 +180,11 @@ LOGGING = {
 # --- Interview agent -------------------------------------------------------
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+# Only needed when ANTHROPIC_API_KEY is an account-level key rather than one
+# created inside a workspace. Such keys are rejected by /v1/messages with
+# "not scoped to a workspace" unless this id travels with the request. Leave
+# unset for a workspace-scoped key, which is the simpler setup.
+ANTHROPIC_WORKSPACE_ID = os.environ.get("ANTHROPIC_WORKSPACE_ID") or ""
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL") or "claude-sonnet-5"
 ANTHROPIC_MAX_TOKENS = int(os.environ.get("ANTHROPIC_MAX_TOKENS") or 600)
 ANTHROPIC_TIMEOUT_SECONDS = float(os.environ.get("ANTHROPIC_TIMEOUT_SECONDS") or 45)

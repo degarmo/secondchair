@@ -73,8 +73,23 @@ cd backend && python manage.py createsuperuser
 
 All backend variables are read from a single `.env` at the repository root.
 `.env.example` documents every one of them. `ANTHROPIC_API_KEY` is the only
-value with no working default — without it the endpoint returns 503 with an
-"email Cory instead" message rather than failing silently.
+value with no working default — without it the endpoint returns 503 pointing
+the visitor at the contact email rather than failing silently.
+
+Create that key **inside a workspace** in the Anthropic Console. An
+account-level key authenticates but is rejected by `/v1/messages`:
+
+```
+400 invalid_request_error - This API key is not scoped to a workspace, so this
+request must include the anthropic-workspace-id header
+```
+
+If you must use an account-level key, set `ANTHROPIC_WORKSPACE_ID` as well and
+the client sends that header. The id is in the Console URL while viewing the
+workspace: `.../settings/workspaces/wrkspc_XXXXXXXX`.
+
+The dev server runs with `--noreload`, so it does not pick up `.env` changes on
+its own. Restart it after editing a credential.
 
 ## Checks
 
