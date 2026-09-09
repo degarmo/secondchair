@@ -220,6 +220,31 @@ repository root because that is the only place Render reads it from.
 
 Migrations run through `preDeployCommand`, so a deploy needs no manual step.
 
-When a custom domain is attached, add it to `ALLOWED_HOSTS` on the API service
-and to `CORS_ALLOWED_ORIGINS` if the site is served from a different hostname
-than the Render static site.
+### Custom domain
+
+`corydegarmo.com` is declared on the static site in `render.yaml`, with the
+apex as primary and `www` redirecting to it. `SITE_ORIGINS` on the API service
+carries the same two names into `CORS_ALLOWED_ORIGINS`, merged with the wired
+`onrender.com` hostname so both keep working.
+
+DNS lives at Network Solutions. Two records, and nothing else:
+
+| Type  | Host / Refers to | Points to               |
+| ----- | ---------------- | ----------------------- |
+| A     | `@`              | Render's apex IP        |
+| CNAME | `www`            | `cd-site-web.onrender.com.` |
+
+Take the apex IP from the Render dashboard rather than from here - it is shown
+on the service's Settings > Custom Domains panel, and it is the authoritative
+value.
+
+Notes that cost an afternoon if missed:
+
+- Network Solutions cannot CNAME an apex, which is why the apex uses an A
+  record. That is a DNS constraint, not a Render one.
+- Delete any parking or forwarding records Network Solutions added at `@` and
+  `www` first. They silently win over the records above.
+- The API stays on its `onrender.com` hostname. It does not need a domain: the
+  browser calls it cross-origin, which CORS already allows.
+- Certificates are issued by Render once DNS resolves, and can take up to an
+  hour. Until then the site answers on `onrender.com`.

@@ -67,7 +67,18 @@ def as_origin(value: str) -> str:
 
 # The React app is served from its own origin, so every browser call to this
 # service is cross-origin and needs an explicit entry here.
-CORS_ALLOWED_ORIGINS = [as_origin(v) for v in env_list("CORS_ALLOWED_ORIGINS")]
+#
+# Two sources, because the blueprint cannot combine them into one variable:
+# CORS_ALLOWED_ORIGINS is wired from the static site's onrender.com hostname,
+# and SITE_ORIGINS carries any custom domain. Both have to stay allowed - the
+# onrender.com address keeps working after a domain is attached, and is what
+# you fall back to while DNS propagates.
+CORS_ALLOWED_ORIGINS = list(
+    dict.fromkeys(
+        as_origin(v)
+        for v in env_list("CORS_ALLOWED_ORIGINS") + env_list("SITE_ORIGINS")
+    )
+)
 if DEBUG and not CORS_ALLOWED_ORIGINS:
     # Vite's dev server (5173) and its preview server (4173).
     CORS_ALLOWED_ORIGINS = [
