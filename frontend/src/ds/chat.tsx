@@ -242,22 +242,31 @@ function ChatNotice({
   );
 }
 
-// --- Listen action --------------------------------------------------------
+// --- Audio toggle ---------------------------------------------------------
 
-interface ListenState {
-  status: "idle" | "loading" | "playing";
+/**
+ * Speech is all-or-nothing: one switch in the panel header, rather than a
+ * control on every answer. When it is on, answers play as they arrive.
+ */
+export interface AudioToggleState {
+  enabled: boolean;
+  /** An answer is being fetched or is playing right now. */
+  busy: "loading" | "playing" | null;
   onToggle: () => void;
 }
 
-function ListenAction({ status, onToggle }: ListenState) {
-  const label =
-    status === "playing" ? "Stop" : status === "loading" ? "Loading" : "Listen";
+function AudioToggle({ enabled, busy, onToggle }: AudioToggleState) {
+  const icon = busy === "loading" ? "loader-circle" : enabled ? "volume-2" : "volume-x";
   return (
     <button
       type="button"
       onClick={onToggle}
-      aria-label={
-        status === "playing" ? "Stop playing this answer" : "Play this answer aloud"
+      aria-pressed={enabled}
+      aria-label={enabled ? "Turn spoken answers off" : "Turn spoken answers on"}
+      title={
+        enabled
+          ? "Answers are read aloud as they arrive"
+          : "Read answers aloud as they arrive"
       }
       style={{
         display: "inline-flex",
@@ -267,10 +276,10 @@ function ListenAction({ status, onToggle }: ListenState) {
         font: "var(--text-data)",
         letterSpacing: "var(--tracking-meta)",
         textTransform: "uppercase",
-        color: status === "idle" ? "var(--text-faint)" : "var(--text-accent)",
+        color: enabled ? "var(--text-accent)" : "var(--text-faint)",
         background: "transparent",
         border: `1px solid ${
-          status === "idle" ? "var(--border-hairline)" : "var(--border-accent)"
+          enabled ? "var(--border-accent)" : "var(--border-hairline)"
         }`,
         borderRadius: "var(--radius-pill)",
         cursor: "pointer",
@@ -279,17 +288,17 @@ function ListenAction({ status, onToggle }: ListenState) {
       }}
     >
       <Icon
-        name={
-          status === "playing" ? "square" : status === "loading" ? "loader-circle" : "volume-2"
-        }
+        name={icon}
         size={13}
         style={
-          status === "loading"
+          busy === "loading"
             ? { animation: "ds-spin 900ms var(--ease-linear) infinite" }
-            : undefined
+            : busy === "playing"
+              ? { animation: "ds-pulse 1.6s var(--ease-in-out) infinite" }
+              : undefined
         }
       />
-      {label}
+      Audio {enabled ? "on" : "off"}
     </button>
   );
 }
@@ -401,8 +410,8 @@ interface ChatPanelProps {
   note?: ReactNode;
   status?: string;
   voice?: VoiceState;
-  /** Returns the Listen state for a stored answer, or null when speech is off. */
-  listenFor?: (message: ChatMessage) => ListenState | null;
+  /** The header audio switch, or null when the site has no voice configured. */
+  audio?: AudioToggleState | null;
   style?: CSSProperties;
 }
 
@@ -415,9 +424,9 @@ export function ChatPanel({
   error = null,
   prompts = [],
   note,
-  status = "Online",
+  status = "Agent online",
   voice,
-  listenFor,
+  audio = null,
   style,
 }: ChatPanelProps) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -465,9 +474,10 @@ export function ChatPanel({
             color: "var(--text-muted)",
           }}
         >
-          Interview agent
+          Interview Cory
         </span>
         <span style={{ flex: 1 }} />
+        {audio ? <AudioToggle {...audio} /> : null}
         <span
           style={{
             display: "inline-flex",
@@ -505,18 +515,11 @@ export function ChatPanel({
           overflowY: "auto",
         }}
       >
-        {messages.map((m) => {
-          const listen = listenFor ? listenFor(m) : null;
-          return (
-            <MessageBubble
-              key={m.id}
-              role={m.role}
-              action={listen ? <ListenAction {...listen} /> : undefined}
-            >
-              {m.text}
-            </MessageBubble>
-          );
-        })}
+        {messages.map((m) => (
+          <MessageBubble key={m.id} role={m.role}>
+            {m.text}
+          </MessageBubble>
+        ))}
         {pending ? <TypingIndicator /> : null}
         {error ? <ChatNotice variant={error.variant}>{error.text}</ChatNotice> : null}
       </div>

@@ -148,3 +148,23 @@ def test_cache_key_changes_with_the_voice(client, configured, log, monkeypatch):
     client.get(url(log.id))
 
     assert len(calls) == 2
+
+
+def test_config_reports_speech_off_when_unconfigured(client, settings):
+    settings.ELEVENLABS_API_KEY = ""
+    settings.ELEVENLABS_VOICE_ID = ""
+
+    response = client.get("/api/interview/config/")
+
+    assert response.status_code == 200
+    assert response.json() == {"speech_available": False}
+
+
+def test_config_reports_speech_on_when_configured(client, settings):
+    settings.ELEVENLABS_API_KEY = "xi-test"
+    settings.ELEVENLABS_VOICE_ID = "voice-test"
+
+    response = client.get("/api/interview/config/")
+
+    assert response.status_code == 200
+    assert response.json() == {"speech_available": True}

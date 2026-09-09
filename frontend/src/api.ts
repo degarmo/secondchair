@@ -60,6 +60,20 @@ async function readDetail(response: Response): Promise<string | null> {
   return null;
 }
 
+/**
+ * What the panel needs on load: whether the site can speak at all. A failure
+ * here is not worth surfacing — the panel just leaves the audio switch hidden.
+ */
+export async function fetchInterviewConfig(
+  signal?: AbortSignal,
+): Promise<{ speech_available: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/interview/config/`, { signal });
+  if (!response.ok) {
+    throw new InterviewError("unavailable", "Config unavailable.", response.status);
+  }
+  return (await response.json()) as { speech_available: boolean };
+}
+
 export async function askInterview(
   question: string,
   history: ChatTurn[],

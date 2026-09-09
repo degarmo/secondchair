@@ -4,8 +4,9 @@ import type { CSSProperties, SVGProps } from "react";
  * Lucide 0.x outline icons (stroke, 24x24, round caps) plus one brand mark
  * from Simple Icons, ported from the design system export.
  *
- * `mic`, `square` and `volume-2` are additions: the export predates the voice
- * controls, so they are drawn from the same Lucide set to stay on-system.
+ * `mic`, `square`, `volume-2` and `volume-x` are additions: the export predates
+ * the voice controls, so they are drawn from the same Lucide set to stay
+ * on-system.
  */
 
 const BRAND = new Set(["github"]);
@@ -50,6 +51,8 @@ const PATHS = {
     '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path> <path d="M12 9v4"></path> <path d="M12 17h.01"></path>',
   "volume-2":
     '<path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"></path> <path d="M16 9a5 5 0 0 1 0 6"></path> <path d="M19.364 18.364a9 9 0 0 0 0-12.728"></path>',
+  "volume-x":
+    '<path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"></path> <path d="m16 9 6 6"></path> <path d="m22 9-6 6"></path>',
   wrench:
     '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"></path>',
   x: '<path d="M18 6 6 18"></path> <path d="m6 6 12 12"></path>',

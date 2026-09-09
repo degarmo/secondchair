@@ -127,6 +127,16 @@ class AnswerSpeechView(APIView):
         return response
 
 
+def interview_config(request):
+    """What the chat panel needs before the first question is asked.
+
+    Only whether the site can speak. The panel shows its audio switch on load
+    rather than waiting for an answer to come back, and hides it entirely when
+    no voice is configured.
+    """
+    return JsonResponse({"speech_available": speech_enabled()})
+
+
 def health(request):
     """Liveness probe for Render."""
     return JsonResponse({"status": "ok"})

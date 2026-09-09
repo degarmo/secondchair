@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   askInterview,
   fetchAnswerAudio,
+  fetchInterviewConfig,
   InterviewError,
   type ChatTurn,
 } from "../api";
@@ -34,6 +35,9 @@ export default function InterviewAgent() {
   // Session id lives in React state only. Nothing is written to storage.
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [speechAvailable, setSpeechAvailable] = useState(false);
+  // Speech is all-or-nothing. Off by default: nobody wants a page that starts
+  // talking. Kept in React state, so it lasts the visit and nothing is stored.
+  const [audioOn, setAudioOn] = useState(false);
   const [playing, setPlaying] = useState<{ logId: number; loading: boolean } | null>(
     null,
   );
@@ -68,6 +72,19 @@ export default function InterviewAgent() {
       setNotice({ variant: "info", text: micError });
     }
   }, [micError]);
+
+  // Ask once on load whether the site can speak, so the audio switch is there
+  // from the start instead of appearing after the first answer.
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchInterviewConfig(controller.signal)
+      .then((config) => setSpeechAvailable(config.speech_available))
+      .catch(() => {
+        // Nothing to tell the visitor. The switch stays hidden; asking a
+        // question will report availability again.
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const urls = audioUrlsRef.current;
@@ -114,6 +131,9 @@ export default function InterviewAgent() {
         ...current,
         { id: nextId++, role: "agent", text: result.answer, logId: result.log_id },
       ]);
+      if (audioOn && result.speech_available) {
+        void speak(result.log_id);
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         return;
@@ -197,6 +217,15 @@ export default function InterviewAgent() {
         return;
       }
       setPlaying(null);
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        // The browser refused to play without a fresh click. Turning the
+        // switch off and on again is a click, which clears it.
+        setNotice({
+          variant: "info",
+          text: "Your browser blocked autoplay. Tap Audio on again to start it.",
+        });
+        return;
+      }
       setNotice({
         variant: "error",
         text:
@@ -204,6 +233,24 @@ export default function InterviewAgent() {
             ? error.message
             : "That answer could not be played.",
       });
+    }
+  };
+
+  const toggleAudio = () => {
+    if (audioOn) {
+      setAudioOn(false);
+      stopPlayback();
+      return;
+    }
+    setAudioOn(true);
+    setNotice(null);
+    // Speak the answer already on screen. It shows the switch worked, and the
+    // click unlocks the audio element so later answers can play on their own.
+    const spoken = [...messages]
+      .reverse()
+      .find((m) => m.role === "agent" && m.logId !== undefined);
+    if (spoken?.logId !== undefined) {
+      void speak(spoken.logId);
     }
   };
 
@@ -239,16 +286,12 @@ export default function InterviewAgent() {
             }
           },
         }}
-        listenFor={(m) =>
-          speechAvailable && m.role === "agent" && m.logId !== undefined
+        audio={
+          speechAvailable
             ? {
-                status:
-                  playing?.logId === m.logId
-                    ? playing.loading
-                      ? "loading"
-                      : "playing"
-                    : "idle",
-                onToggle: () => void speak(m.logId as number),
+                enabled: audioOn,
+                busy: playing ? (playing.loading ? "loading" : "playing") : null,
+                onToggle: toggleAudio,
               }
             : null
         }
