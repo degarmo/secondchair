@@ -128,8 +128,8 @@ export default function InterviewAgent() {
           variant: "limit",
           text: (
             <>
-              Rate limit hit — <a href={`mailto:${CONTACT.email}`}>email Cory instead</a>.
-              He answers faster than you'd think.
+              Rate limit hit — <a href={`mailto:${CONTACT.email}`}>email me instead</a>. I
+              answer faster than you'd think.
             </>
           ),
         });
@@ -141,7 +141,7 @@ export default function InterviewAgent() {
               {error instanceof InterviewError
                 ? error.message
                 : "Something went wrong. Try that again."}{" "}
-              <a href={`mailto:${CONTACT.email}`}>Or email Cory directly.</a>
+              <a href={`mailto:${CONTACT.email}`}>Or email me directly.</a>
             </>
           ),
         });
