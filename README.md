@@ -223,9 +223,15 @@ Migrations run through `preDeployCommand`, so a deploy needs no manual step.
 ### Custom domain
 
 `corydegarmo.com` is declared on the static site in `render.yaml`, with the
-apex as primary and `www` redirecting to it. `SITE_ORIGINS` on the API service
-carries the same two names into `CORS_ALLOWED_ORIGINS`, merged with the wired
-`onrender.com` hostname so both keep working.
+apex as primary and `www` redirecting to it. `CORS_ALLOWED_ORIGINS` on the API
+lists the domain, its `www` form and the `onrender.com` address, so the site
+works on all three.
+
+Both cross-service URLs are written out rather than wired with `fromService`.
+Render has no blueprint property for a service's *public* URL - `host` returns
+the internal name used inside Render's network, so `VITE_API_BASE_URL` came out
+as the literal `cd-site-api` and every browser call failed. If a service is
+ever renamed, these two values have to be updated by hand.
 
 DNS lives at Network Solutions. Two records, and nothing else:
 

@@ -36,19 +36,13 @@ services:
       # Add a custom domain here once one is attached.
       - key: ALLOWED_HOSTS
         value: ""
-      # Render exposes a service's hostname, not its full URL. Settings
-      # prefixes https:// to any origin that arrives without a scheme.
+      # Written out rather than wired. Render has no blueprint property for a
+      # service's *public* URL: fromService `host` returns the internal name
+      # ("cd-site-web") used for service-to-service calls inside Render's
+      # network, which a browser cannot resolve. The onrender.com origin stays
+      # listed so the site keeps working there as well as on the domain.
       - key: CORS_ALLOWED_ORIGINS
-        fromService:
-          name: cd-site-web
-          # "web", not "static": the site is declared as type web with
-          # runtime static, and fromService matches on the declared type.
-          type: web
-          property: host
-      # The custom domain the site answers on. Merged into CORS_ALLOWED_ORIGINS
-      # alongside the wired onrender.com hostname above, which keeps working.
-      - key: SITE_ORIGINS
-        value: corydegarmo.com,www.corydegarmo.com
+        value: https://corydegarmo.com,https://www.corydegarmo.com,https://cd-site-web.onrender.com
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ANTHROPIC_MODEL
@@ -75,13 +69,12 @@ services:
       - corydegarmo.com
       - www.corydegarmo.com
     envVars:
-      # Hostname only, for the same reason. api.ts prefixes https:// when
-      # the value arrives without a scheme.
+      # Written out for the same reason. `host` here resolved to the literal
+      # "cd-site-api", so the browser requested https://cd-site-api/ and every
+      # call failed. This is baked in at build time, so changing it needs a
+      # rebuild of the static site, not just a restart.
       - key: VITE_API_BASE_URL
-        fromService:
-          name: cd-site-api
-          type: web
-          property: host
+        value: https://cd-site-api.onrender.com
     headers:
       - path: /assets/*
         name: Cache-Control
