@@ -41,9 +41,19 @@ export class InterviewError extends Error {
   }
 }
 
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"
-).replace(/\/$/, "");
+/**
+ * Render's blueprint can only pass a service's ``host`` — there is no ``url``
+ * property — so VITE_API_BASE_URL arrives in production as
+ * "cd-site-api.onrender.com" with no scheme. Prefix https:// when one is
+ * missing, and leave a full URL (including the http://localhost default)
+ * alone.
+ */
+const API_BASE_URL = (() => {
+  const raw = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000")
+    .trim()
+    .replace(/\/$/, "");
+  return /^https?:\/\//.test(raw) ? raw : `https://${raw}`;
+})();
 
 async function readDetail(response: Response): Promise<string | null> {
   try {

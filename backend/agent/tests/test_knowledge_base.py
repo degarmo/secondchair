@@ -47,3 +47,18 @@ def test_load_is_cached_after_the_first_read(settings, tmp_path):
 
     # No refresh: the cached text is returned without touching the disk.
     assert load_knowledge_base() == first
+
+
+def test_bare_hostname_becomes_an_https_origin():
+    """Render's blueprint hands over a host, not a URL."""
+    from config.settings import as_origin
+
+    assert as_origin("cd-site-web.onrender.com") == "https://cd-site-web.onrender.com"
+
+
+def test_full_urls_are_left_alone():
+    from config.settings import as_origin
+
+    assert as_origin("https://corydegarmo.com") == "https://corydegarmo.com"
+    assert as_origin("http://localhost:5173") == "http://localhost:5173"
+    assert as_origin("https://corydegarmo.com/") == "https://corydegarmo.com"

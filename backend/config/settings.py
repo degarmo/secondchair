@@ -51,9 +51,23 @@ if render_hostname:
 if DEBUG and not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
+def as_origin(value: str) -> str:
+    """Turn a bare hostname into an https origin, leaving full URLs alone.
+
+    Render's blueprint can only hand over a service's ``host`` - there is no
+    ``url`` property - so CORS_ALLOWED_ORIGINS arrives as "site.onrender.com"
+    with no scheme. django-cors-headers requires a scheme and rejects the
+    bare form at startup.
+    """
+    value = value.rstrip("/")
+    if "://" in value:
+        return value
+    return f"https://{value}"
+
+
 # The React app is served from its own origin, so every browser call to this
 # service is cross-origin and needs an explicit entry here.
-CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
+CORS_ALLOWED_ORIGINS = [as_origin(v) for v in env_list("CORS_ALLOWED_ORIGINS")]
 if DEBUG and not CORS_ALLOWED_ORIGINS:
     # Vite's dev server (5173) and its preview server (4173).
     CORS_ALLOWED_ORIGINS = [

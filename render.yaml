@@ -36,11 +36,13 @@ services:
       # Add a custom domain here once one is attached.
       - key: ALLOWED_HOSTS
         value: ""
+      # Render exposes a service's hostname, not its full URL. Settings
+      # prefixes https:// to any origin that arrives without a scheme.
       - key: CORS_ALLOWED_ORIGINS
         fromService:
           name: cd-site-web
           type: static
-          property: url
+          property: host
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ANTHROPIC_MODEL
@@ -62,11 +64,13 @@ services:
     staticPublishPath: ./dist
     pullRequestPreviewsEnabled: false
     envVars:
+      # Hostname only, for the same reason. api.ts prefixes https:// when
+      # the value arrives without a scheme.
       - key: VITE_API_BASE_URL
         fromService:
           name: cd-site-api
           type: web
-          property: url
+          property: host
     headers:
       - path: /assets/*
         name: Cache-Control
