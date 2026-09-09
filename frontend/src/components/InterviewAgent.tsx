@@ -133,6 +133,9 @@ export default function InterviewAgent() {
             </>
           ),
         });
+      } else if (error instanceof InterviewError && error.fromServer) {
+        // The API already said how to get in touch; don't say it twice.
+        setNotice({ variant: "error", text: error.message });
       } else {
         setNotice({
           variant: "error",

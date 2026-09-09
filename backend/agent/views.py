@@ -50,9 +50,9 @@ class InterviewView(APIView):
             return Response(
                 {
                     "detail": (
-                        "The agent is having trouble reaching the model right "
-                        f"now. Email Cory at {settings.CONTACT_EMAIL} and he'll "
-                        "answer himself."
+                        "I'm having trouble reaching the model right now. "
+                        f"Email me at {settings.CONTACT_EMAIL} and I'll "
+                        "answer myself."
                     ),
                     "code": "agent_unavailable",
                 },

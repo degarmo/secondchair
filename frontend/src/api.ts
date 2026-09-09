@@ -20,12 +20,24 @@ export type FailureKind = "throttled" | "unavailable" | "invalid" | "network";
 export class InterviewError extends Error {
   readonly kind: FailureKind;
   readonly status: number | null;
+  /**
+   * True when the sentence came from the API rather than from our fallback
+   * copy. Server details already say how to get in touch, so the UI does not
+   * append a second contact line to them.
+   */
+  readonly fromServer: boolean;
 
-  constructor(kind: FailureKind, message: string, status: number | null = null) {
+  constructor(
+    kind: FailureKind,
+    message: string,
+    status: number | null = null,
+    fromServer = false,
+  ) {
     super(message);
     this.name = "InterviewError";
     this.kind = kind;
     this.status = status;
+    this.fromServer = fromServer;
   }
 }
 
@@ -85,6 +97,7 @@ export async function askInterview(
         "throttled",
         detail ?? "Too many questions in one hour.",
         429,
+        detail !== null,
       );
     }
     if (response.status === 400) {
@@ -92,12 +105,14 @@ export async function askInterview(
         "invalid",
         detail ?? "That question could not be sent. Keep it under 500 characters.",
         400,
+        detail !== null,
       );
     }
     throw new InterviewError(
       "unavailable",
       detail ?? "The agent is having trouble right now.",
       response.status,
+      detail !== null,
     );
   }
 

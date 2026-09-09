@@ -11,8 +11,8 @@ def friendly_exception_handler(exc, context):
         response.data = {
             "detail": (
                 "That's 20 questions in an hour, which is the limit. "
-                f"Email Cory at {settings.CONTACT_EMAIL} and he'll answer "
-                "himself."
+                f"Email me at {settings.CONTACT_EMAIL} and I'll answer "
+                "myself."
             ),
             "code": "throttled",
         }
