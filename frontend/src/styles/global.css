@@ -55,20 +55,52 @@ hr { border: 0; border-top: var(--border-hair); margin: 0; }
 /* --- additions for this site, not part of the design export ---------------- */
 
 /*
- * Accessibility override.
+ * Surface and text overrides for the dark theme.
  *
- * The export's --text-faint (--slate-400, #6c7480) carries the eyebrows, the
- * chat status line and the footer note. Measured against the three dark
- * surfaces it sits on, it lands at 4.24:1 on #07080a, 4.14:1 on #0b0c0e and
- * 3.97:1 on #101216 — all under the 4.5:1 WCAG AA floor for text this small.
+ * The export's ground is near-black (#07080a page, #0b0c0e sunken), which
+ * reads as flat rather than as a graphite instrument panel. Every surface is
+ * lifted two steps up the export's own --ink ramp, so the layering
+ * relationships and the ramp itself are unchanged and a regenerated
+ * tokens.css still diffs cleanly.
  *
- * Lightening the semantic alias to #7b838f clears it on every surface
- * (5.23 / 5.11 / 4.90) while leaving the --slate-400 ramp untouched, so a
- * regenerated export still diffs cleanly against tokens.css. Worth raising
- * with the design file so the fix lands upstream.
+ *   sunken   #07080a -> #101216      card       #16181d -> #21242b
+ *   page     #0b0c0e -> #16181d      card:hover #1b1e24 -> #2a2e37
+ *   surface1 #101216 -> #1b1e24
+ *
+ * Lighter ground costs contrast, so the four tones that sit on it move too.
+ * Worst-case ratios, measured against the lightest surface each one can land
+ * on, all clear the 4.5:1 WCAG AA floor for small text:
+ *
+ *   --text-muted   #aeb4bd  6.52:1      --status-deployed #5cc294  4.83:1
+ *   --text-faint   #949ba7  4.86:1      --status-live     #e8ad51  4.77:1
+ *   --danger       #e89184  4.75:1      --status-beta     #aeb4bd  5.22:1
+ *
+ * --danger and --status-deployed were already under the floor on the old
+ * ground (4.05:1 and 4.05:1); they are only visible in the error notice and
+ * the project badges, which is why the audit never caught them.
+ *
+ * Scoped with :not([data-theme="light"]) deliberately. [data-theme="light"]
+ * and :root have equal specificity, and this file is imported after
+ * tokens.css, so a bare :root block here would win over the light theme and
+ * paint dark-tuned colours onto white.
  */
-:root {
-  --text-faint: #7b838f;
+:root:not([data-theme="light"]) {
+  --bg-sunken: var(--ink-850);
+  --bg-page: var(--ink-800);
+  --surface-1: var(--ink-750);
+  --surface-2: var(--ink-700);
+  --surface-card: var(--ink-700);
+  --surface-card-hover: var(--ink-600);
+  --surface-inset: var(--ink-850);
+  --surface-glass: rgba(22, 24, 29, 0.72);
+
+  --text-muted: var(--slate-200);
+  --text-faint: #949ba7;
+
+  --danger: #e89184;
+  --status-live: var(--amber-400);
+  --status-deployed: #5cc294;
+  --status-beta: var(--slate-200);
 }
 
 /* Anchors land clear of the fixed nav. */

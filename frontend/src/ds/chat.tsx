@@ -262,7 +262,9 @@ function AudioToggle({ enabled, busy, onToggle }: AudioToggleState) {
       type="button"
       onClick={onToggle}
       aria-pressed={enabled}
-      aria-label={enabled ? "Turn spoken answers off" : "Turn spoken answers on"}
+      // No aria-label: the visible "Audio on"/"Audio off" is the accessible
+      // name, so speaking the label operates the control (WCAG 2.5.3). State
+      // is carried by aria-pressed, the rest by the title.
       title={
         enabled
           ? "Answers are read aloud as they arrive"
