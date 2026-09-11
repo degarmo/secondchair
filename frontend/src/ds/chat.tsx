@@ -378,7 +378,9 @@ function ChatInput({
       {voice?.supported ? (
         <IconButton
           icon={voice.listening ? "square" : "mic"}
-          label={voice.listening ? "Stop dictating" : "Ask by voice"}
+          // Stopping submits, same as pausing does — say so, rather than
+          // leaving "stop" to imply the question is discarded.
+          label={voice.listening ? "Stop and send" : "Ask by voice"}
           variant={voice.listening ? "primary" : "ghost"}
           size="lg"
           pressed={voice.listening}

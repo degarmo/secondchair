@@ -32,6 +32,16 @@ function messageFor(code: SpeechRecognitionErrorCode): string | null {
 interface UseSpeechRecognitionOptions {
   /** Called with the whole utterance so far, replacing any previous value. */
   onTranscript: (transcript: string, isFinal: boolean) => void;
+  /**
+   * Called when an utterance finishes cleanly — either the browser decided the
+   * speaker stopped, or they pressed stop themselves. Both mean "done", so the
+   * caller can submit without a second click.
+   *
+   * Not called when recognition ended because of an error. `onend` fires after
+   * `onerror` too, and a "no-speech" or "not-allowed" end must not be read as
+   * someone finishing a sentence.
+   */
+  onEnd?: () => void;
 }
 
 /**
@@ -43,6 +53,7 @@ interface UseSpeechRecognitionOptions {
  */
 export function useSpeechRecognition({
   onTranscript,
+  onEnd,
 }: UseSpeechRecognitionOptions) {
   const [supported] = useState(() => getConstructor() !== null);
   const [listening, setListening] = useState(false);
@@ -50,10 +61,14 @@ export function useSpeechRecognition({
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const callbackRef = useRef(onTranscript);
+  const endCallbackRef = useRef(onEnd);
+  // Whether this utterance ended badly. Reset on every start.
+  const erroredRef = useRef(false);
 
   useEffect(() => {
     callbackRef.current = onTranscript;
-  }, [onTranscript]);
+    endCallbackRef.current = onEnd;
+  }, [onTranscript, onEnd]);
 
   useEffect(
     () => () => {
@@ -91,15 +106,20 @@ export function useSpeechRecognition({
     };
 
     recognition.onerror = (event) => {
+      erroredRef.current = true;
       setError(messageFor(event.error));
     };
 
     recognition.onend = () => {
       recognitionRef.current = null;
       setListening(false);
+      if (!erroredRef.current) {
+        endCallbackRef.current?.();
+      }
     };
 
     setError(null);
+    erroredRef.current = false;
     recognitionRef.current = recognition;
 
     try {

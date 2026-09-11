@@ -50,11 +50,35 @@ export default function InterviewAgent() {
   // it rather than replacing what the visitor had already written.
   const draftBaseRef = useRef("");
 
+  // The dictated question, mirrored out of React state. `onend` arrives as its
+  // own browser event, with no guarantee React has committed the last
+  // `setDraft` yet, so reading state there can miss the final words.
+  const spokenRef = useRef("");
+  // `send` closes over messages, sessionId and audioOn, so it changes every
+  // render. The speech callback has to reach the current one, not the one that
+  // existed when dictation started.
+  const sendRef = useRef<(question: string) => void>(() => {});
+
   const onTranscript = useCallback((transcript: string, isFinal: boolean) => {
     const base = draftBaseRef.current;
-    setDraft((base ? `${base} ${transcript}` : transcript).slice(0, 500));
+    const composed = (base ? `${base} ${transcript}` : transcript).slice(0, 500);
+    spokenRef.current = composed;
+    setDraft(composed);
     if (isFinal) {
       draftBaseRef.current = "";
+    }
+  }, []);
+
+  /*
+   * Speech recognition runs with continuous = false, so the browser ends the
+   * utterance itself once the speaker pauses. That end is the submit: asking
+   * by voice and then reaching for a button defeats the point.
+   */
+  const onSpeechEnd = useCallback(() => {
+    const question = spokenRef.current.trim();
+    spokenRef.current = "";
+    if (question) {
+      sendRef.current(question);
     }
   }, []);
 
@@ -65,7 +89,7 @@ export default function InterviewAgent() {
     start: startListening,
     stop: stopListening,
     setError: setMicError,
-  } = useSpeechRecognition({ onTranscript });
+  } = useSpeechRecognition({ onTranscript, onEnd: onSpeechEnd });
 
   useEffect(() => {
     if (micError) {
@@ -175,6 +199,10 @@ export default function InterviewAgent() {
     }
   };
 
+  useEffect(() => {
+    sendRef.current = (question: string) => void send(question);
+  });
+
   const stopPlayback = useCallback(() => {
     audioAbortRef.current?.abort();
     audioAbortRef.current = null;
@@ -282,6 +310,7 @@ export default function InterviewAgent() {
               stopListening();
             } else {
               draftBaseRef.current = draft.trim();
+              spokenRef.current = draft.trim();
               startListening();
             }
           },
